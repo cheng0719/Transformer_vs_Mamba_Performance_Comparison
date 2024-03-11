@@ -1,34 +1,20 @@
-import requests, json, datetime, csv
-import stockInfo
+import yfinance as yf
+import pandas as pd
 
-get_url = stockInfo.url.format(stockInfo.code, stockInfo.start_date, stockInfo.end_date)
+# use yfinance to fetch TSMC stock data
+# stock_data = yf.download('2330.TW', start='2010-01-01', end='2023-12-31')
+stock_data = yf.download('2330.TW', start='2023-12-01', end='2023-12-31')
 
-result = requests.get(get_url).json()
-if(result['result'] == 'success'):
-    for item in result['data']:
-        timestamp = item["date"]
-        date = datetime.datetime.utcfromtimestamp(timestamp)
-        item["date"] = date.strftime("%Y%m%d")
-    # print(json.dumps(result['data'], indent=4))
-    
-    json_data = result['data']
+# get the required columns and rename the column names
+stock_data = stock_data.reset_index()
+stock_data = stock_data[['Date', 'High', 'Low', 'Open', 'Close']]
+stock_data.columns = ['date', 'high', 'low', 'open', 'close']
 
-    # sort by date
-    sorted_json_data = sorted(json_data, key=lambda x: datetime.datetime.strptime(x["date"], "%Y%m%d"))
+# convert the date format to '%Y%m%d'
+stock_data['date'] = stock_data['date'].dt.strftime('%Y%m%d')
 
-    # specify fields
-    fields = [field for field in sorted_json_data[0].keys() if field != 'turnover' and field != 'capacity' and field != 'change' and field != 'transaction_volume' and field != 'stock_code_id']
+# sort the data by date
+stock_data = stock_data.sort_values(by='date')
 
-    # specify csv file
-    csv_file = "./output.csv"
-
-    # write to csv
-    with open(csv_file, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=fields)
-        writer.writeheader()
-        for data in sorted_json_data:
-            writer.writerow({field: data[field] for field in fields})
-    
-    print("Data saved to output.csv")
-else:
-    print('Failed to fetch data from server.')
+# ouput the data to a CSV file
+stock_data.to_csv('./tsmc_stock_prices.csv', index=False)
