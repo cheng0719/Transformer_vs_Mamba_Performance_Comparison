@@ -30,8 +30,8 @@ class TransformerModel(nn.Module):
         super(TransformerModel, self).__init__()
         self.input_size = input_size
         self.seq_length = seq_length
-        self.encoder_layer = nn.TransformerEncoderLayer(d_model=input_size, nhead=2)
-        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=1)
+        self.encoder_layer = nn.TransformerEncoderLayer(d_model=input_size, nhead=4)
+        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=6)
         self.decoder = nn.Linear(input_size * seq_length, 4)  # 4個輸出特徵：最高價、最低價、開盤價、收盤價
     
     def forward(self, x):
@@ -40,42 +40,6 @@ class TransformerModel(nn.Module):
         x = self.decoder(x)
         return x
 
-# 訓練函數
-def train_model(model, train_loader, optimizer, criterion, num_epochs):
-    for epoch in range(num_epochs):
-        model.train()
-        total_loss = 0
-        for inputs, targets in train_loader:
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-        print(f"Epoch {epoch+1}, Loss: {total_loss}")
-
-# 設置資料路徑和超參數
-data_path = "./tsmc_stock_prices_training.csv"
-seq_length = 30
-input_size = 4  # 特徵數量：最高價、最低價、開盤價、收盤價
-batch_size = 64
-lr = 0.001
-num_epochs = 10
-
-# 載入資料集和模型
-dataset = StockDataset(data_path, seq_length)
-train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-model = TransformerModel(input_size, seq_length)
-
-# 定義損失函數和優化器
-criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=lr)
-
-# 訓練模型
-train_model(model, train_loader, optimizer, criterion, num_epochs)
-
-
-### Inferencing ###
 # 定義函數以進行模型推論
 def predict(model, data):
     model.eval()
@@ -96,19 +60,67 @@ def predict_from_csv(model, csv_path, seq_length):
         outputs = predict(model, (inputs, targets))
         predictions.append(outputs.squeeze().detach().numpy())
         actuals.append(targets.numpy())
-    return predictions, actuals
+    return predictions, actuals, outputs
 
 # 計算模型的準確度
 def calculate_accuracy(predicted, actual):
-    # 這邊可以自定義計算準確度的方法，例如計算平均絕對誤差 (MAE)
-    return np.mean(np.abs(predicted - actual))
+    # use root-mean-square error (RMSE) as the accuracy metric and return the calculated accuracy
+    return np.sqrt(np.mean((predicted - actual) ** 2))
+
+def inference(model, data_path, seq_length):
+    # 進行推論並計算準確度
+    predictions, actuals, outputs = predict_from_csv(model, data_path, seq_length)
+    total_accuracy = 0
+    for predicted_prices, actual_prices in zip(predictions, actuals):
+        accuracy = calculate_accuracy(predicted_prices, actual_prices)
+        total_accuracy += accuracy
+    average_accuracy = total_accuracy / len(predictions)
+    # print(f"Average Accuracy: {average_accuracy}")
+    return average_accuracy
 
 
-# 進行推論並計算準確度
-predictions, actuals = predict_from_csv(model, "./tsmc_stock_prices_testing.csv", seq_length)
-total_accuracy = 0
-for predicted_prices, actual_prices in zip(predictions, actuals):
-    accuracy = calculate_accuracy(predicted_prices, actual_prices)
-    total_accuracy += accuracy
-average_accuracy = total_accuracy / len(predictions)
-print(f"Average Accuracy: {average_accuracy}")
+# 訓練函數
+def train_model(model, train_loader, optimizer, criterion):
+    i = 1
+    while(1):
+        model.train()
+        total_loss = 0
+        for inputs, targets in train_loader:
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+        train_acc = inference(model, training_data_path, seq_length)
+        val_acc = inference(model, validation_data_path, seq_length)
+        print(f"Epoch {i}, Loss: {total_loss}, Train Acc: {train_acc}, Val Acc: {val_acc}")
+        if(i > 10 and val_acc < train_acc):
+            break
+        i += 1
+
+# 設置資料路徑和超參數
+training_data_path = "./tsmc_stock_prices_training_INT.csv"
+validation_data_path = "./tsmc_stock_prices_validation_INT.csv"
+testing_data_path = "./tsmc_stock_prices_testing_INT.csv"
+seq_length = 30
+input_size = 4  # 特徵數量：最高價、最低價、開盤價、收盤價
+batch_size = 64
+lr = 0.001
+# num_epochs = 10
+
+# 載入資料集和模型
+dataset = StockDataset(training_data_path, seq_length)
+train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+model = TransformerModel(input_size, seq_length)
+
+# 定義損失函數和優化器
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=lr)
+
+# 訓練模型
+train_model(model, train_loader, optimizer, criterion)
+
+
+### Inferencing ###
+print(inference(model, testing_data_path, seq_length))
