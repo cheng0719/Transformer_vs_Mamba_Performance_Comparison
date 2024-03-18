@@ -54,13 +54,16 @@ def predict_from_csv(model, csv_path, seq_length):
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
     predictions = []
     actuals = []
+    total_loss = 0
     for idx, (inputs, targets) in enumerate(dataloader):
         if idx < 30:  # 跳過前 30 筆資料
             continue
         outputs = predict(model, (inputs, targets))
         predictions.append(outputs.squeeze().detach().numpy())
         actuals.append(targets.numpy())
-    return predictions, actuals, outputs
+        loss = criterion(outputs, targets)
+        total_loss += loss.item()
+    return predictions, actuals, total_loss
 
 # 計算模型的準確度
 def calculate_accuracy(predicted, actual):
@@ -69,19 +72,21 @@ def calculate_accuracy(predicted, actual):
 
 def inference(model, data_path, seq_length):
     # 進行推論並計算準確度
-    predictions, actuals, outputs = predict_from_csv(model, data_path, seq_length)
+    predictions, actuals, total_loss = predict_from_csv(model, data_path, seq_length)
     total_accuracy = 0
     for predicted_prices, actual_prices in zip(predictions, actuals):
         accuracy = calculate_accuracy(predicted_prices, actual_prices)
         total_accuracy += accuracy
     average_accuracy = total_accuracy / len(predictions)
     # print(f"Average Accuracy: {average_accuracy}")
-    return average_accuracy
+    return average_accuracy, total_loss
 
 
 # 訓練函數
 def train_model(model, train_loader, optimizer, criterion):
     i = 1
+    val_loss_tmp = 0
+    model_tmp = model
     while(1):
         model.train()
         total_loss = 0
@@ -92,12 +97,15 @@ def train_model(model, train_loader, optimizer, criterion):
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
-        train_acc = inference(model, training_data_path, seq_length)
-        val_acc = inference(model, validation_data_path, seq_length)
-        print(f"Epoch {i}, Loss: {total_loss}, Train Acc: {train_acc}, Val Acc: {val_acc}")
-        if(i > 10 and val_acc < train_acc):
+        train_acc, train_loss = inference(model, training_data_path, seq_length)
+        val_acc, val_loss = inference(model, validation_data_path, seq_length)
+        print(f"Epoch {i}, Train Loss: {total_loss}, Train Acc: {train_acc}, Val Loss: {val_loss}, Val Acc: {val_acc}")
+        if(i > 10 and val_loss > val_loss_tmp):
+            model = model_tmp
             break
         i += 1
+        val_loss_tmp = val_loss
+        model_tmp = model
 
 # 設置資料路徑和超參數
 training_data_path = "./tsmc_stock_prices_training_INT.csv"
@@ -123,4 +131,5 @@ train_model(model, train_loader, optimizer, criterion)
 
 
 ### Inferencing ###
-print(inference(model, testing_data_path, seq_length))
+inf_acc, inf_loss = inference(model, testing_data_path, seq_length)
+print(f"Average Accuracy: {inf_acc}, Total Loss: {inf_loss}")
