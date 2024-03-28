@@ -3,3 +3,5 @@ stockInfo.py
 *.csv
 
 __pycache__/
+
+Datasets/

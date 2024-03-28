@@ -1,27 +1,27 @@
 import yfinance as yf
 import pandas as pd
 
-# 使用YFinance抓取台積電股票資料
-stock_data = yf.download('2330.TW', start='2010-01-01', end='2023-12-31')
+# Fetch TSMC stock data using YFinance
+stock_data = yf.download('2330.TW', start='2024-01-01', end='2024-2-23')
 
-# 取出所需欄位並重新命名欄位名稱
+# Extract the required columns and rename the column names
 stock_data = stock_data.reset_index()
 # stock_data = stock_data[['Date', 'High', 'Low', 'Open', 'Close']]
 # stock_data.columns = ['date', 'high', 'low', 'open', 'close']
-stock_data = stock_data[['Date', 'Close']]
-stock_data.columns = ['date', 'close']
+stock_data = stock_data[['Date', 'Open']]
+stock_data.columns = ['date', 'open']
 
-# 將數值的最小位設為整數個位數
+# Set the minimum digit of the numerical value to an integer digit
 # stock_data['high'] = stock_data['high'].astype(int)
 # stock_data['low'] = stock_data['low'].astype(int)
-# stock_data['open'] = stock_data['open'].astype(int)
-stock_data['close'] = stock_data['close'].astype(int)
+stock_data['open'] = stock_data['open'].astype(int)
+# stock_data['close'] = stock_data['close'].astype(int)
 
-# 轉換日期格式為'%Y%m%d'
-stock_data['date'] = stock_data['date'].dt.strftime('%Y%m%d')
+# Convert the date format to "%Y-%m-%d %H:%M:%S"
+stock_data['date'] = stock_data['date'].dt.strftime("%Y-%m-%d %H:%M:%S")
 
-# 依照日期遞增排列
+# Sort in ascending order by date
 stock_data = stock_data.sort_values(by='date')
 
-# 將資料輸出至CSV檔案
-stock_data.to_csv('./tsmc_stock_prices_INT_close_only.csv', index=False)
+# Output the data to a CSV file
+stock_data.to_csv('./dataset/tsmc_stock_prices_INT_open_only_datetime_backtesting.csv', index=False)
