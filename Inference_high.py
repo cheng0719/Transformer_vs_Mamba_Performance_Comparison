@@ -82,6 +82,7 @@ def Inference():
 
     return y_real, transformer_pred, mamba_pred, transformer_rmse, mamba_rmse
 
+# y_real, transformer_pred, mamba_pred, transformer_rmse, mamba_rmse = Inference()
 # plt.figure(1)
 # plt.plot(y_real, label='real')
 # plt.plot(transformer_pred, label='transformer')

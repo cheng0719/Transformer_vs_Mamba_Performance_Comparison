@@ -72,6 +72,7 @@ def Backtesting():
 
     return y_real, transformer_pred, mamba_pred, transformer_rmse, mamba_rmse
 
+# y_real, transformer_pred, mamba_pred, transformer_rmse, mamba_rmse = Backtesting()
 # print('TSMC 2024/2/23 Open Price Prediction: ' + str(y_real[-1]))
 # print('Transformer Predicted Open Price: ' + str(transformer_pred[-1]))
 # print('Mamba Predicted Open Price: ' + str(mamba_pred[-1]))
